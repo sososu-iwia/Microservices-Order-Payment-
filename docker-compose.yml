@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+  order-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: order_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - order_db_data:/var/lib/postgresql/data
+      - ./order-service/migrations:/docker-entrypoint-initdb.d
+
+  payment-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - payment_db_data:/var/lib/postgresql/data
+      - ./payment-service/migrations:/docker-entrypoint-initdb.d
+
+  payment-service:
+    build: ./payment-service
+    environment:
+      PAYMENT_DB_DSN: postgres://postgres:postgres@payment-db:5432/payment_db?sslmode=disable
+      PORT: "8082"
+    ports:
+      - "8082:8082"
+    depends_on:
+      - payment-db
+
+  order-service:
+    build: ./order-service
+    environment:
+      ORDER_DB_DSN: postgres://postgres:postgres@order-db:5432/order_db?sslmode=disable
+      PAYMENT_SERVICE_URL: http://payment-service:8082
+      PORT: "8081"
+    ports:
+      - "8081:8081"
+    depends_on:
+      - order-db
+      - payment-service
+
+volumes:
+  order_db_data:
+  payment_db_data:
